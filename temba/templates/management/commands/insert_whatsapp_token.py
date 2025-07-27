@@ -110,8 +110,6 @@ class Command(BaseCommand):
             return False
         
         # Check for common auth_token patterns
-        if auth_token.startswith("EAAB") or auth_token.startswith("EAA"):  # Facebook/WhatsApp tokens
-            return True
         if len(auth_token) >= 50:  # Generic long token
             return True
         

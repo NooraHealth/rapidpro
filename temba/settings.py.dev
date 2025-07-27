@@ -11,6 +11,7 @@
 import warnings
 
 from .settings_common import *  # noqa
+from .settings_security import *  # noqa
 
 DEBUG = True
 
@@ -19,6 +20,10 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",") if os.env
 
 # CSRF trusted origins can be configured via environment variable
 CSRF_TRUSTED_ORIGINS = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS") else []
+
+# Temporarily disable strict security settings for development
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
 INTERNAL_IPS = ("127.0.0.1",)
 
