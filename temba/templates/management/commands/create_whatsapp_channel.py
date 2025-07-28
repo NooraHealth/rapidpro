@@ -32,12 +32,12 @@ class Command(BaseCommand):
         parser.add_argument("--waba-id", required=True, help="WhatsApp Business Account ID")
         parser.add_argument("--business-id", required=True, help="Facebook Business ID")
         parser.add_argument("--auth-token", required=True, help="WhatsApp auth_token for sending messages")
+        parser.add_argument("--namespace", default="test_namespace", help="Message template namespace (default: test_namespace)")
 
         # Optional channel details
         parser.add_argument("--base-url", default="https://whatsapp.turn.io", help="Base URL for WhatsApp API (default: https://whatsapp.turn.io)")
         parser.add_argument("--username", default="test_user", help="Username for WhatsApp API (default: test_user)")
         parser.add_argument("--password", default="test_pass", help="Password for WhatsApp API (default: test_pass)")
-        parser.add_argument("--namespace", default="test_namespace", help="Message template namespace (default: test_namespace)")
         parser.add_argument("--name", help="Custom channel name (default: auto-generated)")
 
         # Options
