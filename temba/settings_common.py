@@ -307,9 +307,9 @@ LOGGING = {
 BRAND = {
     "name": "RapidPro",
     "description": _("Visually build nationally scalable mobile applications anywhere in the world."),
-    "hosts": ["rapidpro.io"],
-    "domain": "app.rapidpro.io",
-    "emails": {"notifications": "support@rapidpro.io"},
+    "hosts": ["noorahealth.org"],
+    "domain": os.environ.get("BRAND_DOMAIN", "app.rapidpro.io"),
+    "emails": {"notifications": "sreeram@noorahealth.org"},
     "logos": {
         "primary": "images/logo-dark.svg",
         "favico": "brands/rapidpro/rapidpro.ico",
