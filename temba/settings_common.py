@@ -87,9 +87,17 @@ STORAGES = {
 
 # settings used by django-storages (defaults to local Minio server)
 AWS_S3_REGION_NAME = AWS_REGION
-AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_FILE_OVERWRITE = False
+
+# Configure for nginx proxy - use domain as endpoint but keep bucket in path
+if os.getenv("AWS_S3_CUSTOM_DOMAIN"):
+    # Use the domain as the endpoint with HTTPS for URL generation
+    AWS_S3_ENDPOINT_URL = f"https://{os.getenv('AWS_S3_CUSTOM_DOMAIN')}"
+    AWS_S3_USE_SSL = True
+else:
+    # Default to local Minio for internal container communication
+    AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
 
 STORAGE_URL = f"{AWS_S3_ENDPOINT_URL}/{_bucket_prefix}-default"
 
