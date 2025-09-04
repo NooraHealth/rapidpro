@@ -75,7 +75,7 @@ STORAGES = {
     "public": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         "OPTIONS": {
-            "bucket_name": f"{_bucket_prefix}-default",
+            "bucket_name": f"{_bucket_prefix}-attachments",
             "signature_version": "s3v4",
             "default_acl": "public-read",
             "querystring_auth": False,
