@@ -737,6 +737,13 @@ REST_FRAMEWORK = {
 REST_HANDLE_EXCEPTIONS = not TESTING
 
 # -----------------------------------------------------------------------------------
+# Imports
+# -----------------------------------------------------------------------------------
+
+# Maximum number of records allowed in a single contact import
+CONTACT_IMPORT_MAX_RECORDS = int(os.environ.get("CONTACT_IMPORT_MAX_RECORDS", "50000"))
+
+# -----------------------------------------------------------------------------------
 # Compression
 # -----------------------------------------------------------------------------------
 
