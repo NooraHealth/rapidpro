@@ -722,13 +722,19 @@ CELERY_BEAT_SCHEDULE = {
 # API
 # -----------------------------------------------------------------------------------
 
+_api_throttle_v2 = int(os.environ.get("API_THROTTLE_V2", "25000"))
+_api_throttle_v2_contacts = int(os.environ.get("API_THROTTLE_V2_CONTACTS", str(_api_throttle_v2)))
+_api_throttle_v2_messages = int(os.environ.get("API_THROTTLE_V2_MESSAGES", str(_api_throttle_v2)))
+_api_throttle_v2_broadcasts = int(os.environ.get("API_THROTTLE_V2_BROADCASTS", str(_api_throttle_v2)))
+_api_throttle_v2_runs = int(os.environ.get("API_THROTTLE_V2_RUNS", str(_api_throttle_v2)))
+
 REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
-        "v2": "25000/hour",
-        "v2.contacts": "25000/hour",
-        "v2.messages": "25000/hour",
-        "v2.broadcasts": "25000/hour",
-        "v2.runs": "25000/hour",
+        "v2": f"{_api_throttle_v2}/hour",
+        "v2.contacts": f"{_api_throttle_v2_contacts}/hour",
+        "v2.messages": f"{_api_throttle_v2_messages}/hour",
+        "v2.broadcasts": f"{_api_throttle_v2_broadcasts}/hour",
+        "v2.runs": f"{_api_throttle_v2_runs}/hour",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 250,
