@@ -7,6 +7,29 @@ from celery.schedules import crontab
 
 from django.utils.translation import gettext_lazy as _
 
+# -----------------------------------------------------------------------------------
+# Sentry Configuration - Simple error tracking setup
+# -----------------------------------------------------------------------------------
+
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+
+# Initialize Sentry if DSN is provided - minimal configuration
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "development"),
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        send_default_pii=True,
+    )
+
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 HOSTNAME = "localhost"
 
