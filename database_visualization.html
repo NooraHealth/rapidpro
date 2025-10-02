@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidPro Database Schema - Interactive Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+            overflow: visible;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(200vh - 20px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.05em;
+            opacity: 0.95;
+        }
+
+        .controls {
+            background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+            padding: 20px 30px;
+            border-bottom: 2px solid #dee2e6;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .tips-box {
+            background: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            font-size: 0.85em;
+            color: #6c757d;
+            max-width: 350px;
+        }
+
+        .tips-box strong {
+            color: #495057;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-group label {
+            font-size: 0.8em;
+            font-weight: 700;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        select,
+        button {
+            padding: 12px 22px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            font-weight: 500;
+        }
+
+        select {
+            min-width: 220px;
+        }
+
+        select:hover {
+            border-color: #667eea;
+        }
+
+        .category-multiselect {
+            position: relative;
+            min-width: 250px;
+        }
+
+        .multiselect-dropdown {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .multiselect-dropdown:hover {
+            border-color: #667eea;
+        }
+
+        .multiselect-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            margin-top: 5px;
+            padding: 10px;
+            display: none;
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .multiselect-options.show {
+            display: block;
+        }
+
+        .multiselect-option {
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .multiselect-option:hover {
+            background: #f8f9fa;
+        }
+
+        .multiselect-option input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .multiselect-option label {
+            cursor: pointer;
+            user-select: none;
+            flex: 1;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 500px;
+            gap: 0;
+            min-height: 1400px;
+            height: auto;
+        }
+
+        #cy {
+            width: 100%;
+            height: 100%;
+            background: #fafafa;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .sidebar-right {
+            background: white;
+            padding: 30px;
+            overflow-y: visible;
+            border-left: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            height: fit-content;
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-right h3 {
+            color: #667eea;
+            margin-bottom: 18px;
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+
+        .sidebar-right .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .sidebar-right .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 25px;
+            opacity: 0.3;
+        }
+
+        .sidebar-right .empty-state p {
+            font-size: 1.05em;
+            line-height: 1.6;
+        }
+
+        .info-panel {
+            padding: 25px 30px;
+            background: white;
+            border-top: 2px solid #dee2e6;
+            overflow: visible;
+            flex-shrink: 0;
+        }
+
+        .info-panel h3 {
+            color: #667eea;
+            margin-bottom: 18px;
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .table-info {
+            display: none;
+        }
+
+        .table-info.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .table-info-compact {
+            margin-bottom: 20px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .table-info h4 {
+            color: #495057;
+            margin-bottom: 12px;
+            font-size: 1.6em;
+            font-weight: 700;
+        }
+
+        .table-info .db-name {
+            color: #6c757d;
+            font-size: 1em;
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .table-info p {
+            color: #495057;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-size: 1.05em;
+        }
+
+        .table-info .columns {
+            margin-top: 20px;
+        }
+
+        .table-info .columns h5 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .table-info .columns table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+            font-size: 1em;
+        }
+
+        .table-info .columns table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .table-info .columns table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+            font-size: 0.95em;
+        }
+
+        .table-info .columns table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-info .columns table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .table-info .columns .col-name {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1em;
+        }
+
+        .table-info .columns .col-type {
+            color: #f59e0b;
+            font-size: 0.95em;
+            font-weight: 600;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .legend-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .legend-color {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+
+        .diagram-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 1400px;
+        }
+
+        .diagram-stats {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .diagram-stats .stat-badge {
+            pointer-events: auto;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 18px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 2px solid #dee2e6;
+            font-size: 1em;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .stat-badge .number {
+            color: #667eea;
+            font-size: 1.4em;
+            font-weight: 800;
+            margin-right: 6px;
+        }
+
+        .relationships-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+        }
+
+        .relationships-info h5 {
+            color: #495057;
+            margin-bottom: 12px;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+
+        .relationships-info ul {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .relationships-info li {
+            padding: 8px 0;
+            color: #6c757d;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 1em;
+        }
+
+        .relationships-info li:last-child {
+            border-bottom: none;
+        }
+
+        .rel-arrow {
+            color: #667eea;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .selected-categories {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .category-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .category-tag .remove {
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        .category-tag .remove:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ RapidPro Database Schema</h1>
+            <p>Interactive visualization of all business-critical tables and their relationships</p>
+        </div>
+
+        <div class="controls">
+            <div class="controls-left">
+            <div class="control-group">
+                <label for="layout-select">Layout Style</label>
+                <select id="layout-select">
+                    <option value="cose">Force-Directed (COSE)</option>
+                    <option value="circle">Circle</option>
+                    <option value="concentric">Concentric</option>
+                    <option value="grid">Grid</option>
+                    <option value="breadthfirst">Breadth-First</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                    <label>Filter by Categories</label>
+                    <div class="category-multiselect">
+                        <div class="multiselect-dropdown" id="category-dropdown">
+                            <span id="selected-text">All Tables</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="multiselect-options" id="category-options">
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-all" value="all" checked>
+                                <label for="cat-all">All Tables</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-core" value="core">
+                                <label for="cat-core">Core (Contacts & Orgs)</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-messaging" value="messaging">
+                                <label for="cat-messaging">Messaging</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-flows" value="flows">
+                                <label for="cat-flows">Flows</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-campaigns" value="campaigns">
+                                <label for="cat-campaigns">Campaigns</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-channels" value="channels">
+                                <label for="cat-channels">Channels</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-tickets" value="tickets">
+                                <label for="cat-tickets">Ticketing</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-automation" value="automation">
+                                <label for="cat-automation">Automation</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-templates" value="templates">
+                                <label for="cat-templates">Templates</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="cat-ai" value="ai">
+                                <label for="cat-ai">AI & Classifiers</label>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+            <button onclick="resetView()">Reset View</button>
+            <button onclick="fitToScreen()">Fit to Screen</button>
+        </div>
+
+            <div class="controls-right">
+                <div class="tips-box">
+                    💡 <strong>Click</strong> any table to view details • <strong>Filter</strong> categories • <strong>Change</strong> layouts
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+
+            <div class="diagram-container">
+                <div class="diagram-stats">
+                    <div class="stat-badge">
+                        <span class="number" id="total-tables">0</span> Tables
+                    </div>
+                    <div class="stat-badge">
+                        <span class="number" id="total-relationships">0</span> Relationships
+                    </div>
+                    <div class="stat-badge">
+                        <span class="number" id="visible-tables">0</span> Visible
+                    </div>
+                </div>
+        <div id="cy"></div>
+            </div>
+
+            <div class="sidebar-right">
+                <div id="table-info" class="table-info">
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p><strong>Click on a table</strong><br>to view its details</p>
+                </div>
+                    <div class="table-info-compact" style="display: none;">
+                        <h4 id="table-name"></h4>
+                        <div class="db-name" id="table-db-name"></div>
+                        <p id="table-description"></p>
+                </div>
+                    <div class="columns" style="display: none;">
+                        <h5>📊 Table Columns</h5>
+                        <table id="columns-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-columns"></tbody>
+                        </table>
+                    </div>
+                    <div class="relationships-info" id="relationships-info" style="display: none;">
+                        <h5>🔗 Relationships</h5>
+                        <ul id="relationships-list"></ul>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+        <div class="info-panel">
+            <h3 style="text-align: center; margin-bottom: 20px;">🎨 Table Categories Legend</h3>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #667eea;"></div>
+                    <span>Core</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #06b6d4;"></div>
+                    <span>Messaging</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #10b981;"></div>
+                    <span>Flows</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f59e0b;"></div>
+                    <span>Campaigns</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8b5cf6;"></div>
+                    <span>Channels</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ec4899;"></div>
+                    <span>Ticketing</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #6366f1;"></div>
+                    <span>Automation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ef4444;"></div>
+                    <span>Templates</span>
+            </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #14b8a6;"></div>
+                    <span>AI & Classifiers</span>
+                </div>
+            </div>
+            
+            <h3 style="text-align: center; margin-top: 30px; margin-bottom: 15px;">📚 Additional Resources</h3>
+            <p style="color: #6c757d; font-size: 0.9em; line-height: 1.6; text-align: center;">
+                For detailed documentation of all tables, columns, and query examples, see the 
+                <strong>DATABASE SCHEMA OVERVIEW.md</strong> file.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Define the comprehensive database schema
+        const tables = {
+            // Core
+            org: {
+                name: 'orgs_org',
+                label: 'Organizations',
+                category: 'core',
+                description: 'Root organizational entity. Each org is a separate workspace containing all data.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier for external access' },
+                    { name: 'name', type: 'varchar(128)', description: 'Organization name' },
+                    { name: 'timezone', type: 'varchar', description: 'Organization timezone (e.g., America/New_York)' },
+                    { name: 'language', type: 'varchar(64)', description: 'Default language code' },
+                    { name: 'is_anon', type: 'boolean', description: 'Whether contact identifiers are anonymized' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether org is active' },
+                    { name: 'created_on', type: 'timestamp', description: 'When org was created' }
+                ]
+            },
+            contact: {
+                name: 'contacts_contact',
+                label: 'Contacts',
+                category: 'core',
+                description: 'Individuals/entities that can be messaged and tracked.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(128)', description: "Contact's name" },
+                    { name: 'status', type: 'char(1)', description: 'A=Active, B=Blocked, S=Stopped, V=Archived' },
+                    { name: 'language', type: 'varchar(3)', description: "Contact's preferred language (ISO-639-3)" },
+                    { name: 'fields', type: 'jsonb', description: 'Custom field values, keyed by field UUID' },
+                    { name: 'current_flow_id', type: 'integer', description: 'Flow contact is currently in' },
+                    { name: 'last_seen_on', type: 'timestamp', description: 'Last time contact interacted' }
+                ]
+            },
+            contactgroup: {
+                name: 'contacts_contactgroup',
+                label: 'Contact Groups',
+                category: 'core',
+                description: 'Groups of contacts (manual or query-based smart groups).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(128)', description: 'Group name' },
+                    { name: 'group_type', type: 'char(1)', description: 'M=Manual, Q=Smart/Query, A/B/S/V=System status groups' },
+                    { name: 'status', type: 'char(1)', description: 'I=Initializing, V=Evaluating, R=Ready' },
+                    { name: 'query', type: 'text', description: 'Query string for smart groups' }
+                ]
+            },
+            contacturn: {
+                name: 'contacts_contacturn',
+                label: 'Contact URNs',
+                category: 'core',
+                description: 'Unique identifiers for contacts (phone numbers, social media handles, etc.).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'contact_id', type: 'integer', description: 'Foreign key to contacts_contact' },
+                    { name: 'identity', type: 'varchar(255)', description: 'Full URN (scheme:path)' },
+                    { name: 'scheme', type: 'varchar(128)', description: 'URN scheme (tel, whatsapp, telegram, etc.)' },
+                    { name: 'path', type: 'varchar(255)', description: 'URN path (the actual identifier)' },
+                    { name: 'priority', type: 'integer', description: 'Priority (1000=highest)' }
+                ]
+            },
+            contactfield: {
+                name: 'contacts_contactfield',
+                label: 'Contact Fields',
+                category: 'core',
+                description: 'Custom fields for storing additional contact attributes.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'key', type: 'varchar(36)', description: 'Field key (lowercase, alphanumeric + underscore)' },
+                    { name: 'name', type: 'varchar(36)', description: 'Display name' },
+                    { name: 'value_type', type: 'char(1)', description: 'T=Text, N=Number, D=Datetime, S/I/W=Location' },
+                    { name: 'is_system', type: 'boolean', description: 'Whether this is a system field' }
+                ]
+            },
+
+            // Messaging
+            msg: {
+                name: 'msgs_msg',
+                label: 'Messages',
+                category: 'messaging',
+                description: 'All messages sent to or received from contacts.',
+                columns: [
+                    { name: 'id', type: 'bigint', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'contact_id', type: 'integer', description: 'Foreign key to contacts_contact' },
+                    { name: 'channel_id', type: 'integer', description: 'Foreign key to channels_channel' },
+                    { name: 'text', type: 'text', description: 'Message text content' },
+                    { name: 'direction', type: 'char(1)', description: 'I=Incoming, O=Outgoing' },
+                    { name: 'status', type: 'char(1)', description: 'I/Q/W/S/D/R=Outgoing states, P/H=Incoming states' },
+                    { name: 'msg_type', type: 'char(1)', description: 'T=Text, O=Opt-In, V=Voice/IVR' },
+                    { name: 'created_on', type: 'timestamp', description: 'When message was created' },
+                    { name: 'sent_on', type: 'timestamp', description: 'When message was sent' }
+                ]
+            },
+            broadcast: {
+                name: 'msgs_broadcast',
+                label: 'Broadcasts',
+                category: 'messaging',
+                description: 'Messages sent to multiple recipients at once.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'status', type: 'char(1)', description: 'P=Pending, Q=Queued, S=Started, C=Completed, F=Failed' },
+                    { name: 'contact_count', type: 'integer', description: 'Total number of recipients' },
+                    { name: 'translations', type: 'jsonb', description: 'Message content by language' },
+                    { name: 'base_language', type: 'varchar(3)', description: 'Base language (ISO-639-3)' },
+                    { name: 'created_on', type: 'timestamp', description: 'When broadcast was created' }
+                ]
+            },
+            label: {
+                name: 'msgs_label',
+                label: 'Labels',
+                category: 'messaging',
+                description: 'Tags for organizing messages.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(64)', description: 'Label name' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether label is active' }
+                ]
+            },
+            optin: {
+                name: 'msgs_optin',
+                label: 'Opt-Ins',
+                category: 'messaging',
+                description: 'Contact opt-in status for specific messaging topics.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(64)', description: 'Opt-in name' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether opt-in is active' }
+                ]
+            },
+            media: {
+                name: 'msgs_media',
+                label: 'Media',
+                category: 'messaging',
+                description: 'Uploaded media files used as message attachments.',
+                columns: [
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'url', type: 'varchar(2048)', description: 'Public URL to media' },
+                    { name: 'content_type', type: 'varchar(255)', description: 'MIME type (image/jpeg, audio/mp3, etc.)' },
+                    { name: 'size', type: 'integer', description: 'File size in bytes' },
+                    { name: 'duration', type: 'integer', description: 'Duration in milliseconds (for audio/video)' },
+                    { name: 'status', type: 'char(1)', description: 'P=Pending, R=Ready, F=Failed' }
+                ]
+            },
+
+            // Flows
+            flow: {
+                name: 'flows_flow',
+                label: 'Flows',
+                category: 'flows',
+                description: 'Automated conversation flows (decision trees).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(128)', description: 'Flow name' },
+                    { name: 'flow_type', type: 'char(1)', description: 'M=Message, V=Voice/IVR, B=Background, S=Survey' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether flow is active' },
+                    { name: 'is_archived', type: 'boolean', description: 'Whether flow is archived' },
+                    { name: 'version_number', type: 'varchar(8)', description: 'Flow spec version' },
+                    { name: 'expires_after_minutes', type: 'integer', description: 'Inactivity timeout in minutes' }
+                ]
+            },
+            flowrun: {
+                name: 'flows_flowrun',
+                label: 'Flow Runs',
+                category: 'flows',
+                description: 'Individual instances of contacts going through flows.',
+                columns: [
+                    { name: 'id', type: 'bigint', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'flow_id', type: 'integer', description: 'Foreign key to flows_flow' },
+                    { name: 'contact_id', type: 'integer', description: 'Foreign key to contacts_contact' },
+                    { name: 'status', type: 'char(1)', description: 'A=Active, W=Waiting, C=Completed, I=Interrupted, X=Expired, F=Failed' },
+                    { name: 'responded', type: 'boolean', description: 'Whether contact has sent a message during run' },
+                    { name: 'results', type: 'jsonb', description: 'Results collected, keyed by result name' },
+                    { name: 'created_on', type: 'timestamp', description: 'When run started' },
+                    { name: 'exited_on', type: 'timestamp', description: 'When run exited' }
+                ]
+            },
+            flowsession: {
+                name: 'flows_flowsession',
+                label: 'Flow Sessions',
+                category: 'flows',
+                description: 'Sessions containing multiple flow runs (parent-child flows).',
+                columns: [
+                    { name: 'id', type: 'bigint', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'contact_id', type: 'integer', description: 'Foreign key to contacts_contact' },
+                    { name: 'status', type: 'char(1)', description: 'W=Waiting, C=Completed, I=Interrupted, X=Expired, F=Failed' },
+                    { name: 'session_type', type: 'char(1)', description: 'M=Message, V=Voice' },
+                    { name: 'created_on', type: 'timestamp', description: 'When session started' },
+                    { name: 'ended_on', type: 'timestamp', description: 'When session ended' }
+                ]
+            },
+            flowstart: {
+                name: 'flows_flowstart',
+                label: 'Flow Starts',
+                category: 'flows',
+                description: 'Records of flows being started (manually or automatically).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'flow_id', type: 'integer', description: 'Foreign key to flows_flow' },
+                    { name: 'start_type', type: 'char(1)', description: 'M=Manual, A=API, Z=Zapier, T=Trigger' },
+                    { name: 'status', type: 'char(1)', description: 'P=Pending, Q=Queued, S=Started, C=Completed, F=Failed' },
+                    { name: 'contact_count', type: 'integer', description: 'Number of contacts started' },
+                    { name: 'created_on', type: 'timestamp', description: 'When start was created' }
+                ]
+            },
+            flowlabel: {
+                name: 'flows_flowlabel',
+                label: 'Flow Labels',
+                category: 'flows',
+                description: 'Labels/tags for organizing and categorizing flows.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(64)', description: 'Label name' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether label is active' }
+                ]
+            },
+
+            // Campaigns
+            campaign: {
+                name: 'campaigns_campaign',
+                label: 'Campaigns',
+                category: 'campaigns',
+                description: 'Automated message sequences based on dates in contact fields.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(255)', description: 'Campaign name' },
+                    { name: 'group_id', type: 'integer', description: 'Target group for campaign' },
+                    { name: 'is_archived', type: 'boolean', description: 'Whether campaign is archived' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether campaign is active' }
+                ]
+            },
+            campaignevent: {
+                name: 'campaigns_campaignevent',
+                label: 'Campaign Events',
+                category: 'campaigns',
+                description: 'Individual events within campaigns (send message or start flow).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'campaign_id', type: 'integer', description: 'Foreign key to campaigns_campaign' },
+                    { name: 'event_type', type: 'char(1)', description: 'F=Flow, M=Message' },
+                    { name: 'relative_to_id', type: 'integer', description: 'Date field to base timing on' },
+                    { name: 'offset', type: 'integer', description: 'Offset from relative_to date' },
+                    { name: 'unit', type: 'char(1)', description: 'M=Minutes, H=Hours, D=Days, W=Weeks' },
+                    { name: 'flow_id', type: 'integer', description: 'Flow to start (if type=F)' }
+                ]
+            },
+
+            // Channels
+            channel: {
+                name: 'channels_channel',
+                label: 'Channels',
+                category: 'channels',
+                description: 'Communication channels for sending/receiving messages.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'channel_type', type: 'varchar(3)', description: 'Channel type code (WAC, TW, TG, etc.)' },
+                    { name: 'name', type: 'varchar(64)', description: 'Channel name' },
+                    { name: 'address', type: 'varchar(255)', description: 'Channel address (phone number, etc.)' },
+                    { name: 'schemes', type: 'text[]', description: 'Supported URN schemes' },
+                    { name: 'role', type: 'varchar(4)', description: 'Roles: S=Send, R=Receive, C=Call, A=Answer' }
+                ]
+            },
+            channelevent: {
+                name: 'channels_channelevent',
+                label: 'Channel Events',
+                category: 'channels',
+                description: 'Non-message events from channels (calls, opt-ins, etc.).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'channel_id', type: 'integer', description: 'Foreign key to channels_channel' },
+                    { name: 'contact_id', type: 'integer', description: 'Foreign key to contacts_contact' },
+                    { name: 'event_type', type: 'varchar(16)', description: 'Type of event (mo_call, mt_call, optin, etc.)' },
+                    { name: 'occurred_on', type: 'timestamp', description: 'When event occurred' }
+                ]
+            },
+
+            // Ticketing
+            ticket: {
+                name: 'tickets_ticket',
+                label: 'Tickets',
+                category: 'tickets',
+                description: 'Support tickets for human-agent interaction with contacts.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'contact_id', type: 'integer', description: 'Foreign key to contacts_contact' },
+                    { name: 'topic_id', type: 'integer', description: 'Foreign key to tickets_topic' },
+                    { name: 'assignee_id', type: 'integer', description: 'Foreign key to auth_user (assigned agent)' },
+                    { name: 'status', type: 'char(1)', description: 'O=Open, C=Closed' },
+                    { name: 'opened_on', type: 'timestamp', description: 'When ticket was opened' },
+                    { name: 'closed_on', type: 'timestamp', description: 'When ticket was closed' }
+                ]
+            },
+            ticketevent: {
+                name: 'tickets_ticketevent',
+                label: 'Ticket Events',
+                category: 'tickets',
+                description: 'History of ticket state changes.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'ticket_id', type: 'integer', description: 'Foreign key to tickets_ticket' },
+                    { name: 'event_type', type: 'char(1)', description: 'O=Opened, A=Assigned, N=Note, T=Topic Changed, C=Closed' },
+                    { name: 'note', type: 'text', description: 'Note text (if event_type=N)' },
+                    { name: 'created_on', type: 'timestamp', description: 'When event occurred' }
+                ]
+            },
+            topic: {
+                name: 'tickets_topic',
+                label: 'Topics',
+                category: 'tickets',
+                description: 'Categories for organizing tickets.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(64)', description: 'Topic name' },
+                    { name: 'is_default', type: 'boolean', description: 'Whether this is the default topic' }
+                ]
+            },
+            team: {
+                name: 'tickets_team',
+                label: 'Teams',
+                category: 'tickets',
+                description: 'Groups of agent users organized by topic access.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(128)', description: 'Team name' },
+                    { name: 'all_topics', type: 'boolean', description: 'Whether team can access all topics' }
+                ]
+            },
+
+            // Automation
+            trigger: {
+                name: 'triggers_trigger',
+                label: 'Triggers',
+                category: 'automation',
+                description: 'Automated flow starters based on events (keywords, schedules, etc.).',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'trigger_type', type: 'char(1)', description: 'K=Keyword, S=Schedule, V=Inbound Call, etc.' },
+                    { name: 'flow_id', type: 'integer', description: 'Foreign key to flows_flow' },
+                    { name: 'keywords', type: 'text[]', description: 'Keywords to match (if type=K)' },
+                    { name: 'is_archived', type: 'boolean', description: 'Whether trigger is archived' }
+                ]
+            },
+            schedule: {
+                name: 'schedules_schedule',
+                label: 'Schedules',
+                category: 'automation',
+                description: 'Scheduling configuration for recurring events.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'repeat_period', type: 'char(1)', description: 'O=Once, D=Daily, W=Weekly, M=Monthly, Y=Yearly' },
+                    { name: 'repeat_hour_of_day', type: 'integer', description: 'Hour to fire (0-23)' },
+                    { name: 'next_fire', type: 'timestamp', description: 'Next scheduled fire time' }
+                ]
+            },
+            global: {
+                name: 'globals_global',
+                label: 'Globals',
+                category: 'automation',
+                description: 'Global variables accessible in flows and messages.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'key', type: 'varchar(36)', description: 'Variable key (lowercase, alphanumeric + underscore)' },
+                    { name: 'name', type: 'varchar(36)', description: 'Display name' },
+                    { name: 'value', type: 'text', description: 'Global value' }
+                ]
+            },
+
+            // Templates
+            template: {
+                name: 'templates_template',
+                label: 'Templates',
+                category: 'templates',
+                description: 'Message templates (primarily for WhatsApp) with variable substitution.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(512)', description: 'Template name' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether template is active' }
+                ]
+            },
+            templatetranslation: {
+                name: 'templates_templatetranslation',
+                label: 'Template Translations',
+                category: 'templates',
+                description: 'Language-specific versions of templates.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'template_id', type: 'integer', description: 'Foreign key to templates_template' },
+                    { name: 'channel_id', type: 'integer', description: 'Foreign key to channels_channel' },
+                    { name: 'locale', type: 'varchar(6)', description: 'Language locale (e.g., eng, eng-US)' },
+                    { name: 'status', type: 'char(1)', description: 'P=Pending, A=Approved, R=Rejected' },
+                    { name: 'content', type: 'text', description: 'Template content with variables' },
+                    { name: 'variable_count', type: 'integer', description: 'Number of variables in template' }
+                ]
+            },
+
+            // AI & Classifiers
+            classifier: {
+                name: 'classifiers_classifier',
+                label: 'Classifiers',
+                category: 'ai',
+                description: 'NLU/AI classifiers for intent recognition and entity extraction.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'uuid', type: 'uuid', description: 'Unique identifier' },
+                    { name: 'org_id', type: 'integer', description: 'Foreign key to orgs_org' },
+                    { name: 'name', type: 'varchar(255)', description: 'Classifier name' },
+                    { name: 'classifier_type', type: 'varchar(16)', description: 'Type of classifier (wit, bothub, luis, etc.)' },
+                    { name: 'config', type: 'jsonb', description: 'Classifier configuration' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether classifier is active' }
+                ]
+            },
+            intent: {
+                name: 'classifiers_intent',
+                label: 'Intents',
+                category: 'ai',
+                description: 'Intent definitions for classifiers.',
+                columns: [
+                    { name: 'id', type: 'integer', description: 'Primary key' },
+                    { name: 'classifier_id', type: 'integer', description: 'Foreign key to classifiers_classifier' },
+                    { name: 'name', type: 'varchar(64)', description: 'Intent name' },
+                    { name: 'external_id', type: 'varchar(255)', description: 'External ID from classifier provider' },
+                    { name: 'is_active', type: 'boolean', description: 'Whether intent is active' },
+                    { name: 'created_on', type: 'timestamp', description: 'When intent was created' }
+                ]
+            }
+        };
+
+        // Define comprehensive relationships
+        const relationships = [
+            // Core relationships
+            { from: 'org', to: 'contact', label: 'has many' },
+            { from: 'org', to: 'contactgroup', label: 'has many' },
+            { from: 'org', to: 'contactfield', label: 'has many' },
+            { from: 'contact', to: 'contacturn', label: 'has many' },
+            { from: 'contact', to: 'contactgroup', label: 'belongs to many' },
+
+            // Messaging relationships
+            { from: 'org', to: 'msg', label: 'has many' },
+            { from: 'org', to: 'broadcast', label: 'has many' },
+            { from: 'org', to: 'label', label: 'has many' },
+            { from: 'org', to: 'optin', label: 'has many' },
+            { from: 'org', to: 'media', label: 'has many' },
+            { from: 'contact', to: 'msg', label: 'has many' },
+            { from: 'contacturn', to: 'msg', label: 'has many' },
+            { from: 'channel', to: 'msg', label: 'has many' },
+            { from: 'broadcast', to: 'msg', label: 'creates' },
+            { from: 'broadcast', to: 'contact', label: 'targets' },
+            { from: 'broadcast', to: 'contactgroup', label: 'targets' },
+            { from: 'msg', to: 'label', label: 'has many' },
+
+            // Flow relationships
+            { from: 'org', to: 'flow', label: 'has many' },
+            { from: 'org', to: 'flowlabel', label: 'has many' },
+            { from: 'flow', to: 'flowrun', label: 'has many' },
+            { from: 'flow', to: 'flowstart', label: 'has many' },
+            { from: 'flow', to: 'flowlabel', label: 'has many' },
+            { from: 'contact', to: 'flowrun', label: 'has many' },
+            { from: 'contact', to: 'flowsession', label: 'has many' },
+            { from: 'flowrun', to: 'msg', label: 'generates' },
+            { from: 'flowstart', to: 'flowrun', label: 'creates' },
+            { from: 'flowstart', to: 'contact', label: 'starts' },
+            { from: 'flowstart', to: 'contactgroup', label: 'starts' },
+            { from: 'flowsession', to: 'flowrun', label: 'contains' },
+            { from: 'flow', to: 'contactgroup', label: 'depends on' },
+            { from: 'flow', to: 'contactfield', label: 'depends on' },
+
+            // Campaign relationships
+            { from: 'org', to: 'campaign', label: 'has many' },
+            { from: 'campaign', to: 'campaignevent', label: 'has many' },
+            { from: 'campaign', to: 'contactgroup', label: 'targets' },
+            { from: 'campaignevent', to: 'contactfield', label: 'based on' },
+            { from: 'campaignevent', to: 'flow', label: 'starts' },
+
+            // Channel relationships
+            { from: 'org', to: 'channel', label: 'has many' },
+            { from: 'channel', to: 'channelevent', label: 'has many' },
+            { from: 'channel', to: 'contacturn', label: 'affinity' },
+            { from: 'contact', to: 'channelevent', label: 'has many' },
+
+            // Ticketing relationships
+            { from: 'org', to: 'ticket', label: 'has many' },
+            { from: 'org', to: 'topic', label: 'has many' },
+            { from: 'org', to: 'team', label: 'has many' },
+            { from: 'contact', to: 'ticket', label: 'has many' },
+            { from: 'ticket', to: 'topic', label: 'belongs to' },
+            { from: 'ticket', to: 'ticketevent', label: 'has many' },
+            { from: 'ticket', to: 'msg', label: 'has many' },
+            { from: 'team', to: 'topic', label: 'accesses' },
+
+            // Automation relationships
+            { from: 'org', to: 'trigger', label: 'has many' },
+            { from: 'org', to: 'schedule', label: 'has many' },
+            { from: 'org', to: 'global', label: 'has many' },
+            { from: 'trigger', to: 'flow', label: 'starts' },
+            { from: 'trigger', to: 'channel', label: 'listens to' },
+            { from: 'trigger', to: 'contactgroup', label: 'filters by' },
+            { from: 'schedule', to: 'broadcast', label: 'schedules' },
+            { from: 'schedule', to: 'trigger', label: 'schedules' },
+
+            // Template relationships
+            { from: 'org', to: 'template', label: 'has many' },
+            { from: 'template', to: 'templatetranslation', label: 'has many' },
+            { from: 'templatetranslation', to: 'channel', label: 'belongs to' },
+            { from: 'flow', to: 'template', label: 'depends on' },
+
+            // AI & Classifier relationships
+            { from: 'org', to: 'classifier', label: 'has many' },
+            { from: 'classifier', to: 'intent', label: 'has many' },
+            { from: 'flow', to: 'classifier', label: 'depends on' }
+        ];
+
+        // Color scheme by category
+        const categoryColors = {
+            core: '#667eea',
+            messaging: '#06b6d4',
+            flows: '#10b981',
+            campaigns: '#f59e0b',
+            channels: '#8b5cf6',
+            tickets: '#ec4899',
+            automation: '#6366f1',
+            templates: '#ef4444',
+            ai: '#14b8a6'
+        };
+
+        // Build cytoscape elements
+        const elements = {
+            nodes: Object.keys(tables).map(key => ({
+                data: {
+                    id: key,
+                    label: tables[key].label,
+                    tableName: tables[key].name,
+                    category: tables[key].category,
+                    description: tables[key].description,
+                    columns: tables[key].columns,
+                    color: categoryColors[tables[key].category]
+                }
+            })),
+            edges: relationships.map((rel, idx) => ({
+                data: {
+                    id: `e${idx}`,
+                    source: rel.from,
+                    target: rel.to,
+                    label: rel.label
+                }
+            }))
+        };
+
+        // Initialize Cytoscape
+        let cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: elements,
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': 'data(color)',
+                        'label': 'data(label)',
+                        'color': '#fff',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': '16px',
+                        'font-weight': 'bold',
+                        'width': 120,
+                        'height': 120,
+                        'text-wrap': 'wrap',
+                        'text-max-width': '110px',
+                        'border-width': 5,
+                        'border-color': '#fff',
+                        'overlay-opacity': 0,
+                        'transition-property': 'border-color, border-width',
+                        'transition-duration': '0.2s'
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'border-color': '#f59e0b',
+                        'border-width': 8
+                    }
+                },
+                {
+                    selector: 'node:active',
+                    style: {
+                        'overlay-opacity': 0
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 3,
+                        'line-color': '#cbd5e1',
+                        'target-arrow-color': '#cbd5e1',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'label': 'data(label)',
+                        'font-size': '11px',
+                        'color': '#64748b',
+                        'text-rotation': 'autorotate',
+                        'text-background-color': '#fff',
+                        'text-background-opacity': 0.9,
+                        'text-background-padding': '4px',
+                        'overlay-opacity': 0,
+                        'transition-property': 'line-color, width',
+                        'transition-duration': '0.2s'
+                    }
+                },
+                {
+                    selector: 'edge:selected',
+                    style: {
+                        'line-color': '#f59e0b',
+                        'target-arrow-color': '#f59e0b',
+                        'width': 6
+                    }
+                },
+                {
+                    selector: '.hidden',
+                    style: {
+                        'display': 'none'
+                    }
+                },
+                {
+                    selector: '.highlighted',
+                    style: {
+                        'border-color': '#10b981',
+                        'border-width': 6
+                    }
+                },
+                {
+                    selector: '.dimmed',
+                    style: {
+                        'opacity': 0.3
+                    }
+                }
+            ],
+            layout: {
+                name: 'cose',
+                animate: true,
+                animationDuration: 500,
+                nodeRepulsion: 15000,
+                idealEdgeLength: 150,
+                edgeElasticity: 100,
+                nestingFactor: 1.2
+            }
+        });
+
+        // Update stats
+        function updateStats() {
+            document.getElementById('total-tables').textContent = Object.keys(tables).length;
+            document.getElementById('total-relationships').textContent = relationships.length;
+            document.getElementById('visible-tables').textContent = cy.nodes(':visible').length;
+        }
+
+        updateStats();
+
+        // Multiselect dropdown functionality
+        const dropdown = document.getElementById('category-dropdown');
+        const optionsContainer = document.getElementById('category-options');
+        const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]');
+        const selectedText = document.getElementById('selected-text');
+        let selectedCategories = ['all'];
+
+        dropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+            optionsContainer.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function() {
+            optionsContainer.classList.remove('show');
+        });
+
+        optionsContainer.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.value === 'all') {
+                    if (this.checked) {
+                        checkboxes.forEach(cb => {
+                            if (cb.value !== 'all') cb.checked = false;
+                        });
+                        selectedCategories = ['all'];
+                    }
+                } else {
+                    document.getElementById('cat-all').checked = false;
+                    selectedCategories = Array.from(checkboxes)
+                        .filter(cb => cb.checked && cb.value !== 'all')
+                        .map(cb => cb.value);
+                    
+                    if (selectedCategories.length === 0) {
+                        document.getElementById('cat-all').checked = true;
+                        selectedCategories = ['all'];
+                    }
+                }
+                
+                updateCategoryFilter();
+                updateSelectedText();
+            });
+        });
+
+        function updateSelectedText() {
+            if (selectedCategories.includes('all') || selectedCategories.length === 0) {
+                selectedText.textContent = 'All Tables';
+            } else if (selectedCategories.length === 1) {
+                const checkbox = document.getElementById(`cat-${selectedCategories[0]}`);
+                selectedText.textContent = checkbox.nextElementSibling.textContent;
+            } else {
+                selectedText.textContent = `${selectedCategories.length} categories selected`;
+            }
+        }
+
+        function updateCategoryFilter() {
+            if (selectedCategories.includes('all') || selectedCategories.length === 0) {
+                cy.elements().removeClass('hidden');
+            } else {
+                cy.nodes().addClass('hidden');
+                selectedCategories.forEach(category => {
+                cy.nodes(`[category = "${category}"]`).removeClass('hidden');
+                });
+
+                // Show edges only if both nodes are visible
+                cy.edges().forEach(edge => {
+                    const source = edge.source();
+                    const target = edge.target();
+                    if (!source.hasClass('hidden') && !target.hasClass('hidden')) {
+                        edge.removeClass('hidden');
+                    } else {
+                        edge.addClass('hidden');
+                    }
+                });
+            }
+
+            updateStats();
+        }
+
+        // Event listeners
+        cy.on('tap', 'node', function (evt) {
+            const node = evt.target;
+            const data = node.data();
+
+            // Update table info panel
+            document.getElementById('table-name').textContent = data.label;
+            document.getElementById('table-db-name').textContent = data.tableName;
+            document.getElementById('table-description').textContent = data.description;
+
+            // Populate columns table
+            const columnsTableBody = document.getElementById('table-columns');
+            columnsTableBody.innerHTML = data.columns.map(col => `
+                <tr>
+                    <td class="col-name">${col.name}</td>
+                    <td class="col-type">${col.type}</td>
+                    <td>${col.description}</td>
+                </tr>
+            `).join('');
+
+            // Show relationships
+            const nodeRelationships = relationships.filter(r => r.from === node.id() || r.to === node.id());
+            const relationshipsList = document.getElementById('relationships-list');
+            if (nodeRelationships.length > 0) {
+                relationshipsList.innerHTML = nodeRelationships.map(rel => {
+                    if (rel.from === node.id()) {
+                        return `<li><strong>${data.label}</strong> <span class="rel-arrow">→</span> ${tables[rel.to].label} <em>(${rel.label})</em></li>`;
+                    } else {
+                        return `<li>${tables[rel.from].label} <span class="rel-arrow">→</span> <strong>${data.label}</strong> <em>(${rel.label})</em></li>`;
+                    }
+                }).join('');
+                document.getElementById('relationships-info').style.display = 'block';
+            } else {
+                document.getElementById('relationships-info').style.display = 'none';
+            }
+
+            // Remove empty state and show content
+            const tableInfo = document.getElementById('table-info');
+            tableInfo.querySelector('.empty-state').style.display = 'none';
+            tableInfo.querySelector('.table-info-compact').style.display = 'block';
+            tableInfo.querySelector('.columns').style.display = 'block';
+            tableInfo.classList.add('active');
+
+            // Highlight connected nodes
+            cy.nodes().removeClass('highlighted dimmed');
+            cy.edges().removeClass('highlighted dimmed');
+
+            const connectedNodes = node.neighborhood('node');
+            const connectedEdges = node.connectedEdges();
+
+            cy.nodes().not(node).not(connectedNodes).addClass('dimmed');
+            cy.edges().not(connectedEdges).addClass('dimmed');
+            connectedNodes.addClass('highlighted');
+        });
+
+        // Clear selection on background tap
+        cy.on('tap', function (evt) {
+            if (evt.target === cy) {
+                cy.nodes().removeClass('highlighted dimmed');
+                cy.edges().removeClass('highlighted dimmed');
+            }
+        });
+
+        // Layout change
+        document.getElementById('layout-select').addEventListener('change', function () {
+            cy.layout({
+                name: this.value,
+                animate: true,
+                animationDuration: 500
+            }).run();
+        });
+
+        // Reset view
+        function resetView() {
+            cy.elements().removeClass('hidden highlighted dimmed');
+            
+            // Reset category checkboxes
+            checkboxes.forEach(cb => {
+                if (cb.value === 'all') {
+                    cb.checked = true;
+                } else {
+                    cb.checked = false;
+                }
+            });
+            selectedCategories = ['all'];
+            updateSelectedText();
+            
+            document.getElementById('layout-select').value = 'cose';
+            cy.layout({
+                name: 'cose',
+                animate: true
+            }).run();
+            updateStats();
+        }
+
+        // Fit to screen
+        function fitToScreen() {
+            cy.fit(cy.elements(':visible'), 50);
+        }
+
+        // Initial fit
+        setTimeout(() => {
+            fitToScreen();
+        }, 700);
+    </script>
+</body>
+
+</html>
+
