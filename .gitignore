@@ -44,3 +44,6 @@ media/emails
 __pycache__/
 *.py[cod]
 *.so
+
+# exports for temporary scripts and data recovery
+temp_exports/
