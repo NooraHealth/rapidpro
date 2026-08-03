@@ -119,14 +119,18 @@ AWS_S3_REGION_NAME = AWS_REGION
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_FILE_OVERWRITE = False
 
-# Configure for nginx proxy - use domain as endpoint but keep bucket in path
+# Always talk to MinIO/S3 over the internal endpoint for API calls (migrations, uploads).
+# Public/browser URLs use AWS_S3_CUSTOM_DOMAIN when set (see docker-compose).
+AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
 if os.getenv("AWS_S3_CUSTOM_DOMAIN"):
-    AWS_S3_ENDPOINT_URL = f"https://{os.getenv('AWS_S3_CUSTOM_DOMAIN')}"
-    AWS_S3_USE_SSL = True
-else:
-    AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
+    AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN")
+    AWS_S3_URL_PROTOCOL = os.getenv("AWS_S3_URL_PROTOCOL", "https:")
 
-STORAGE_URL = f"{AWS_S3_ENDPOINT_URL}/{BUCKET_PREFIX}-default"
+STORAGE_URL = (
+    f"{AWS_S3_URL_PROTOCOL}//{AWS_S3_CUSTOM_DOMAIN}/{BUCKET_PREFIX}-default"
+    if os.getenv("AWS_S3_CUSTOM_DOMAIN")
+    else f"{AWS_S3_ENDPOINT_URL}/{BUCKET_PREFIX}-default"
+)
 
 # -----------------------------------------------------------------------------------
 # Localization
