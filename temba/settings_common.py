@@ -7,6 +7,30 @@ from celery.schedules import crontab
 
 from django.utils.translation import gettext_lazy as _
 
+
+# -----------------------------------------------------------------------------------
+# Sentry Configuration - Simple error tracking setup
+# -----------------------------------------------------------------------------------
+
+SENTRY_DSN = os.environ.get("SENTRY_DSN")
+
+# Initialize Sentry if DSN is provided - minimal configuration
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "development"),
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        send_default_pii=True,
+    )
+
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 HOSTNAME = "localhost"
 
@@ -30,9 +54,21 @@ if TESTING:
     PASSWORD_HASHERS = ("django.contrib.auth.hashers.MD5PasswordHasher",)
     DEBUG = False
 
-_db_host = "postgres"
-_valkey_host = "valkey"
-_localstack_host = "localstack"
+if os.getenv("REMOTE_CONTAINERS") == "true":
+    _db_host = "postgres"
+    _valkey_host = "valkey"
+    _minio_host = "minio"
+    _dynamo_host = "dynamo"
+else:
+    _db_host = "localhost"
+    _valkey_host = "localhost"
+    _minio_host = "localhost"
+    _dynamo_host = "localhost"
+
+# Database credentials - can be overridden by environment variables
+_db_user = os.getenv("POSTGRES_USER", "temba")
+_db_password = os.getenv("POSTGRES_PASSWORD", "temba")
+_db_name = os.getenv("POSTGRES_DB", "temba")
 
 # -----------------------------------------------------------------------------------
 # AWS
@@ -42,7 +78,7 @@ AWS_ACCESS_KEY_ID = "root"
 AWS_SECRET_ACCESS_KEY = "tembatemba"
 AWS_REGION = "us-east-1"
 
-DYNAMO_ENDPOINT_URL = f"http://{_localstack_host}:4566"
+DYNAMO_ENDPOINT_URL = f"http://{_dynamo_host}:6000"
 DYNAMO_TABLE_PREFIX = "Test" if TESTING else "Temba"
 
 # -----------------------------------------------------------------------------------
@@ -66,7 +102,7 @@ STORAGES = {
     "public": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         "OPTIONS": {
-            "bucket_name": f"{BUCKET_PREFIX}-default",
+            "bucket_name": f"{BUCKET_PREFIX}-attachments",
             "signature_version": "s3v4",
             "default_acl": "public-read",
             "querystring_auth": False,
@@ -76,11 +112,17 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# settings used by django-storages (defaults to localstack)
+# settings used by django-storages (defaults to local Minio server)
 AWS_S3_REGION_NAME = AWS_REGION
-AWS_S3_ENDPOINT_URL = f"http://{_localstack_host}:4566"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_FILE_OVERWRITE = False
+
+# Configure for nginx proxy - use domain as endpoint but keep bucket in path
+if os.getenv("AWS_S3_CUSTOM_DOMAIN"):
+    AWS_S3_ENDPOINT_URL = f"https://{os.getenv('AWS_S3_CUSTOM_DOMAIN')}"
+    AWS_S3_USE_SSL = True
+else:
+    AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
 
 STORAGE_URL = f"{AWS_S3_ENDPOINT_URL}/{BUCKET_PREFIX}-default"
 
@@ -146,12 +188,13 @@ MEDIA_URL = "/media/"
 # -----------------------------------------------------------------------------------
 # Email
 # -----------------------------------------------------------------------------------
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_HOST_USER = "server@temba.io"
-DEFAULT_FROM_EMAIL = "Temba <server@temba.io>"
-EMAIL_HOST_PASSWORD = "mypassword"
-EMAIL_USE_TLS = True
-EMAIL_TIMEOUT = 10
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "server@temba.io")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", f"Temba <{os.environ.get('EMAIL_HOST_USER', 'server@temba.io')}>")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "mypassword")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() in ("true", "1", "yes", "on")
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
@@ -297,9 +340,9 @@ LOGGING = {
 BRAND = {
     "name": "RapidPro",
     "description": _("Visually build nationally scalable mobile applications anywhere in the world."),
-    "hosts": ["rapidpro.io"],
-    "domain": "app.rapidpro.io",
-    "emails": {"notifications": "support@rapidpro.io"},
+    "hosts": ["noorahealth.org"],
+    "domain": os.environ.get("BRAND_DOMAIN", "app.rapidpro.io"),
+    "emails": {"notifications": "sreeram@noorahealth.org"},
     "logos": {
         "primary": "images/logo-dark.svg",
         "favico": "brands/rapidpro/rapidpro.ico",
@@ -628,9 +671,9 @@ INVITATION_VALIDITY = timedelta(days=30)
 
 _default_database_config = {
     "ENGINE": "django.db.backends.postgresql",
-    "NAME": "temba",
-    "USER": "temba",
-    "PASSWORD": "temba",
+    "NAME": _db_name,
+    "USER": _db_user,
+    "PASSWORD": _db_password,
     "HOST": _db_host,
     "PORT": "5432",
     "ATOMIC_REQUESTS": True,
@@ -702,18 +745,30 @@ CELERY_BEAT_SCHEDULE = {
 # API
 # -----------------------------------------------------------------------------------
 
+_api_throttle_v2 = int(os.environ.get("API_THROTTLE_V2", "25000"))
+_api_throttle_v2_contacts = int(os.environ.get("API_THROTTLE_V2_CONTACTS", str(_api_throttle_v2)))
+_api_throttle_v2_messages = int(os.environ.get("API_THROTTLE_V2_MESSAGES", str(_api_throttle_v2)))
+_api_throttle_v2_runs = int(os.environ.get("API_THROTTLE_V2_RUNS", str(_api_throttle_v2)))
+
 REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
-        "v2": "3600/hour",
-        "v2.contacts": "3600/hour",
-        "v2.messages": "3600/hour",
-        "v2.runs": "3600/hour",
+        "v2": f"{_api_throttle_v2}/hour",
+        "v2.contacts": f"{_api_throttle_v2_contacts}/hour",
+        "v2.messages": f"{_api_throttle_v2_messages}/hour",
+        "v2.runs": f"{_api_throttle_v2_runs}/hour",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 250,
     "EXCEPTION_HANDLER": "temba.api.support.temba_exception_handler",
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
+
+# -----------------------------------------------------------------------------------
+# Imports
+# -----------------------------------------------------------------------------------
+
+# Maximum number of records allowed in a single contact import
+CONTACT_IMPORT_MAX_RECORDS = int(os.environ.get("CONTACT_IMPORT_MAX_RECORDS", "50000"))
 
 # -----------------------------------------------------------------------------------
 # Compression
