@@ -2081,7 +2081,7 @@ def get_import_upload_path(instance: Any, filename: str):
 
 
 class ContactImport(SmartModel):
-    MAX_RECORDS = 25_000
+    MAX_RECORDS = getattr(settings, "CONTACT_IMPORT_MAX_RECORDS", 25_000)
     BATCH_SIZE = 100
     EXPLICIT_CLEAR = "--"
 
