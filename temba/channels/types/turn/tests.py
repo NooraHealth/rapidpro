@@ -92,7 +92,7 @@ class TurnTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RW", channel.country)
         self.assertEqual("TRN", channel.channel_type)
-        self.assertEqual(45, channel.tps)
+        self.assertEqual(20, channel.tps)
         self.assertEqual("TRN", channel.type.code)
         self.assertEqual("whatsapp", channel.template_type.slug)
 
