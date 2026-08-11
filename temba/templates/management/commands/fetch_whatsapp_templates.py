@@ -1,8 +1,8 @@
 """
-Django management command to fetch WhatsApp templates from Meta's API and insert them into RapidPro database.
+Django management command to fetch WhatsApp templates from Turn/Meta's API and insert them into RapidPro database.
 
 Usage examples:
-  # Fetch templates using existing channel
+  # Fetch templates using existing channel (WA, WAC, or TRN)
   python manage.py fetch_whatsapp_templates --waba-id 123456789 --access-token YOUR_TOKEN --channel-id 5
 
   # Dry run to preview templates
@@ -12,29 +12,29 @@ Usage examples:
   python manage.py fetch_whatsapp_templates --waba-id 123456789 --access-token YOUR_TOKEN --channel-id 5 --verbose
 """
 
-import json
 import requests
 
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.type import WhatsAppType
-from temba.orgs.models import Org
 from temba.templates.models import TemplateTranslation
-from temba.users.models import User
+
+# Channel types that use WhatsApp-style message templates
+WHATSAPP_TEMPLATE_CHANNEL_TYPES = ("WA", "WAC", "TRN")
 
 
 class Command(BaseCommand):
-    help = "Fetch WhatsApp templates from Meta API and insert into RapidPro database"
+    help = "Fetch WhatsApp templates from Turn/Meta API and insert into RapidPro database"
 
     def add_arguments(self, parser):
-        # Meta API credentials (required)
+        # API credentials (required)
         parser.add_argument("--waba-id", required=True, help="WhatsApp Business Account ID")
-        parser.add_argument("--access-token", required=True, help="System User Access Token for WhatsApp Business API")
+        parser.add_argument("--access-token", required=True, help="Access token for the WhatsApp template list API")
 
         # Channel selection (required)
-        parser.add_argument("--channel-id", type=int, required=True, help="WhatsApp channel ID to use for template sync")
+        parser.add_argument(
+            "--channel-id", type=int, required=True, help="WhatsApp/Turn channel ID to use for template sync"
+        )
 
         # Options
         parser.add_argument(
@@ -54,8 +54,8 @@ class Command(BaseCommand):
             # 2. Get and validate channel
             channel = self._get_channel(options["channel_id"])
 
-            # 3. Fetch templates from Meta API using provided credentials
-            self.stdout.write("Fetching templates from Meta WhatsApp Business API...")
+            # 3. Fetch templates from Turn's Graph API using provided credentials
+            self.stdout.write("Fetching templates from WhatsApp template API...")
             raw_templates = self._fetch_templates_from_meta(waba_id, access_token, channel)
 
             if not raw_templates:
@@ -83,34 +83,38 @@ class Command(BaseCommand):
             raise CommandError(f"Error: {str(e)}")
 
     def _get_channel(self, channel_id):
-        """Get and validate the WhatsApp channel"""
+        """Get and validate the WhatsApp/Turn channel"""
         try:
             channel = Channel.objects.get(id=channel_id, is_active=True)
-            if channel.channel_type not in ["WAC", "WA"]:
-                raise CommandError(f"Channel {channel_id} is not a WhatsApp channel")
-            
+            if channel.channel_type not in WHATSAPP_TEMPLATE_CHANNEL_TYPES:
+                raise CommandError(
+                    f"Channel {channel_id} is not a WhatsApp/Turn channel "
+                    f"(got {channel.channel_type}, expected one of {', '.join(WHATSAPP_TEMPLATE_CHANNEL_TYPES)})"
+                )
+
             if self.verbose:
                 self.stdout.write(f"Using channel: {channel.id} ({channel.name})")
                 self.stdout.write(f"  Channel Type: {channel.channel_type}")
-                
+
                 if channel.channel_type == "WAC":
                     # WhatsApp Cloud channel info
                     self.stdout.write(f"  Phone Number: {channel.config.get('wa_number', 'N/A')}")
                     self.stdout.write(f"  Verified Name: {channel.config.get('wa_verified_name', 'N/A')}")
                     self.stdout.write(f"  WABA ID: {channel.config.get('wa_waba_id', 'N/A')}")
-                elif channel.channel_type == "WA":
-                    # WhatsApp Legacy channel info
+                elif channel.channel_type in ("WA", "TRN"):
+                    # WhatsApp Legacy / Turn.io channel info
                     self.stdout.write(f"  Address: {channel.address}")
                     self.stdout.write(f"  Base URL: {channel.config.get('base_url', 'N/A')}")
                     self.stdout.write(f"  Business ID: {channel.config.get('fb_business_id', 'N/A')}")
                     self.stdout.write(f"  Template Domain: {channel.config.get('fb_template_list_domain', 'N/A')}")
-            
+                    self.stdout.write(f"  Namespace: {channel.config.get('fb_namespace', 'N/A')}")
+
             return channel
         except Channel.DoesNotExist:
             raise CommandError(f"Channel with ID {channel_id} not found or inactive")
 
     def _fetch_templates_from_meta(self, waba_id, access_token, channel):
-        """Fetch templates from Meta's WhatsApp Business API"""
+        """Fetch templates from Turn's WhatsApp Graph-compatible template API"""
         url = f"https://whatsapp.turn.io/graph/v14.0/{waba_id}/message_templates"
         headers = {"Authorization": f"Bearer {access_token}"}
         templates = []
@@ -130,10 +134,10 @@ class Command(BaseCommand):
                 url = data.get("paging", {}).get("next", None)
 
                 if self.verbose and url:
-                    self.stdout.write(f"Found pagination, continuing...")
+                    self.stdout.write("Found pagination, continuing...")
 
             except requests.RequestException as e:
-                raise CommandError(f"Failed to fetch templates from Meta API: {str(e)}")
+                raise CommandError(f"Failed to fetch templates from template API: {str(e)}")
 
         return templates
 
@@ -167,7 +171,7 @@ class Command(BaseCommand):
         if self.verbose:
             self.stdout.write("Processing templates using RapidPro's existing sync logic...")
 
-        # Use RapidPro's existing template sync logic
+        # Use RapidPro's existing template sync logic (works for WA/WAC/TRN via template_type=whatsapp)
         TemplateTranslation.update_local(channel, raw_templates)
 
         # Return count of templates for this channel
