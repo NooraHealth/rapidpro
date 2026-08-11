@@ -119,18 +119,19 @@ AWS_S3_REGION_NAME = AWS_REGION
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_FILE_OVERWRITE = False
 
-# Always talk to MinIO/S3 over the internal endpoint for API calls (migrations, uploads).
-# Public/browser URLs use AWS_S3_CUSTOM_DOMAIN when set (see docker-compose).
-AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
+# Route S3 through the public domain (nginx proxies /{bucket}/... to MinIO) so that
+# generated and presigned URLs are reachable by browsers and by courier.
+#
+# Never set AWS_S3_CUSTOM_DOMAIN as a Django setting here: django-storages treats it as
+# a CloudFront domain, building {protocol}//{domain}/{key} with no bucket and no
+# signature, which 404s against the nginx MinIO proxy and 403s on private buckets.
 if os.getenv("AWS_S3_CUSTOM_DOMAIN"):
-    AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN")
-    AWS_S3_URL_PROTOCOL = os.getenv("AWS_S3_URL_PROTOCOL", "https:")
+    AWS_S3_ENDPOINT_URL = f"https://{os.getenv('AWS_S3_CUSTOM_DOMAIN')}"
+    AWS_S3_USE_SSL = True
+else:
+    AWS_S3_ENDPOINT_URL = f"http://{_minio_host}:9000"
 
-STORAGE_URL = (
-    f"{AWS_S3_URL_PROTOCOL}//{AWS_S3_CUSTOM_DOMAIN}/{BUCKET_PREFIX}-default"
-    if os.getenv("AWS_S3_CUSTOM_DOMAIN")
-    else f"{AWS_S3_ENDPOINT_URL}/{BUCKET_PREFIX}-default"
-)
+STORAGE_URL = f"{AWS_S3_ENDPOINT_URL}/{BUCKET_PREFIX}-default"
 
 # -----------------------------------------------------------------------------------
 # Localization
