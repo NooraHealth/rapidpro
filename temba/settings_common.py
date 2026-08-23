@@ -356,7 +356,7 @@ BRAND = {
     "landing": {
         "hero": "brands/rapidpro/splash.jpg",
     },
-    "features": ["signups", "sso"],
+    "features": ["sso"],
 }
 
 FEATURES = {"locations"}
@@ -1002,6 +1002,17 @@ SOCIALACCOUNT_ADAPTER = "temba.users.adapter.TembaSocialAccountAdapter"
 MFA_ADAPTER = "temba.users.adapter.TembaMFAAdapter"
 
 SOCIALACCOUNT_PROVIDERS = {}
+_google_client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+_google_client_secret = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+if _google_client_id and _google_client_secret:
+    SOCIALACCOUNT_PROVIDERS["google"] = {
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "APP": {
+            "client_id": _google_client_id,
+            "secret": _google_client_secret,
+        },
+    }
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
