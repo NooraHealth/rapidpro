@@ -43,10 +43,12 @@ MAILROOM_AUTH_TOKEN = os.environ.get("MAILROOM_AUTH_TOKEN")
 MIDDLEWARE = ("temba.middleware.ExceptionMiddleware",) + MIDDLEWARE
 
 # -----------------------------------------------------------------------------------
-# In development, perform background tasks in the web thread (synchronously)
+# Celery. This file is temba.settings in the docker image, not only local dev.
+# ALWAYS_EAGER must stay False so mailroom populate_group runs after ATOMIC_REQUESTS
+# commits the new smart group; otherwise mailroom returns "no such query based group".
 # -----------------------------------------------------------------------------------
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TASK_EAGER_PROPAGATES = False
 
 # -----------------------------------------------------------------------------------
 # This setting throws an exception if a naive datetime is used anywhere. (they should
